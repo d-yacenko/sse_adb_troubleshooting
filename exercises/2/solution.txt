@@ -1,0 +1,10 @@
+sudo su - gpadmin
+gpstate -a
+psql adb -c "select * from gp_segment_configuration;"
+psql adb -c "select * from gp_segment_configuration where status='d';"
+gprecoverseg -a
+gpstate -e # смотрим что WAL синхронизированы !!
+psql adb -c "select * from gp_segment_configuration where status='d';"
+gpstate -a
+gprecoverseg -ar
+gpstate -a

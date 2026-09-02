@@ -1,0 +1,29 @@
+# на стороне ADCM
+Cluster -> ADB -> Action -> Activate standby
+	force activation: true
+	run analyze: false
+#Run
+
+#проверить работоспособность кластера
+проверить состав хостов в кластере
+sudo su - gpadmin
+cat arenadata_configs/arenadata_all_hosts.hosts
+psql adb;
+select distinct(hostname) from gp_segment_configuration ;
+
+#вывод mdw из кластера
+Cluster -> ADB -> Services -> PXF
+Action -> Uninstall
+Cluster -> ADB -> Services -> Monitoring Clients
+Action -> Uninstall
+
+Cluster -> ADB -> Hosts 
+ssetrouble01-mdw.ru-central1.internal -> Unlink
+
+Cluster -> ADB -> Reinstall statuschecker
+
+#проверить работоспособность кластера
+psql adb;
+select * from gp_segment_configuration ;
+select now();
+
