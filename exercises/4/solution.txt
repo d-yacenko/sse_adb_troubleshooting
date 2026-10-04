@@ -1,36 +1,29 @@
-#на хосте mdw
-sudo su - gpadmin
-cat arenadata_configs/arenadata_all_hosts.hosts
-
-
-#на стороне adcm создаем хост
-Hosts -> Create host:
-	Hostprovider: SSH Common
-	Name: ssetrouble01-msdw1.ru-central1.internal
-	Cluster: ADB
-#Create
-
-#настройка хоста
-Username: admin
-Password: <your_password>
-Connection address: ssetrouble01-msdw1.ru-central1.internal
-#Save
-
-action: Install statuschecker
-
-ADB -> Action -> Init Standby Master
-1 Configuration 
-	Reboot new servers after installation: true
-	Reboot timeout, sec: 1800
-
-2 Host - Component
-	ssetrouble01-msdw1.ru-central1.internal добавить к компоненте ADB Standby
-	ssetrouble01-msdw1.ru-central1.internal добавить к компоненте Monitoring Agents
-	ssetrouble01-msdw1.ru-central1.internal добавить к компоненте PXF
+# на стороне ADCM
+Cluster -> ADB -> Action -> Activate standby
+	force activation: true
+	run analyze: false
 #Run
 
+#проверить работоспособность кластера
+проверить состав хостов в кластере
 sudo su - gpadmin
 cat arenadata_configs/arenadata_all_hosts.hosts
-
 psql adb;
 select distinct(hostname) from gp_segment_configuration ;
+
+#вывод mdw из кластера
+Cluster -> ADB -> Services -> PXF
+Action -> Uninstall
+Cluster -> ADB -> Services -> Monitoring Clients
+Action -> Uninstall
+
+Cluster -> ADB -> Hosts 
+ssetrouble01-mdw.ru-central1.internal -> Unlink
+
+Cluster -> ADB -> Reinstall statuschecker
+
+#проверить работоспособность кластера
+psql adb;
+select * from gp_segment_configuration ;
+select now();
+
