@@ -1,0 +1,82 @@
+sudo su - gpadmin
+
+# подключаемся к БД
+psql adb
+
+# проверяем симптом
+select now();
+
+# запрос будет ожидать выполнения
+# отменить его: Ctrl+C
+
+
+# получаем возможность выполнять административные запросы
+set gp_resource_group_bypass = on;
+
+select now();
+
+
+# определяем ресурсную группу пользователя gpadmin
+select
+    rolname,
+    rsgname
+from pg_roles
+join pg_resgroup
+    on pg_roles.rolresgroup = pg_resgroup.oid
+where rolname = 'gpadmin';
+
+
+# проверяем настройки admin_group
+select
+    groupname,
+    concurrency
+from gp_toolkit.gp_resgroup_config
+where groupname = 'admin_group';
+
+
+# проверяем текущее состояние resource group
+select
+    rsgname,
+    num_running,
+    num_queueing,
+    num_queued
+from gp_toolkit.gp_resgroup_status
+where rsgname = 'admin_group';
+
+
+# смотрим выполняющиеся и ожидающие запросы
+select
+    pid,
+    usename,
+    application_name,
+    state,
+    waiting,
+    waiting_reason,
+    rsgname,
+    rsgqueueduration,
+    query
+from pg_stat_activity
+where rsgname = 'admin_group'
+order by query_start;
+
+
+# завершаем сессии, созданные упражнением
+select pg_terminate_backend(pid)
+from pg_stat_activity
+where application_name like 'exercise6_resgroup_%'
+  and pid <> pg_backend_pid();
+
+
+# проверяем состояние resource group после устранения проблемы
+select
+    rsgname,
+    num_running,
+    num_queueing
+from gp_toolkit.gp_resgroup_status
+where rsgname = 'admin_group';
+
+
+# возвращаем обычный режим работы текущей сессии
+reset gp_resource_group_bypass;
+
+select now();
