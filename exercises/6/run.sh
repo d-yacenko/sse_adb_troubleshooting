@@ -6,7 +6,7 @@ DB_USER="gpadmin"
 RESOURCE_GROUP="admin_group"
 
 APP_PREFIX="exercise6_resgroup"
-SLEEP_SECONDS=3600
+SLEEP_SECONDS=$((240 * 3600))
 LOG_FILE="/tmp/${APP_PREFIX}.log"
 
 echo "Поломка запущена..."
