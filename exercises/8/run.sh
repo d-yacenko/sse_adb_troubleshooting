@@ -11,30 +11,23 @@ SDW2=$(echo "$MDW" | sed 's/-mdw/-sdw2/g')
 
 echo "Подготовка проблемной ситуации..."
 
-# Таблицу создаем до остановки репликации.
 sudo -iu "$DB_USER" psql -X -v ON_ERROR_STOP=1 -d "$DB" -c \
 "DROP TABLE IF EXISTS public.write_test;
  CREATE TABLE public.write_test (id bigint, payload text)
  WITH (appendonly=false) DISTRIBUTED RANDOMLY;" >/dev/null
 
-# Ищем segment-host, на котором видны оба wal receiver.
 TARGET=""
 PIDS=""
 
 for HOST in "$SDW1" "$SDW2"; do
-    if ! ssh -q $SSH_OPTS "$HOST" "exit" 2>/dev/null; then
-        continue
-    fi
+    ssh -q $SSH_OPTS "$HOST" "exit" 2>/dev/null || continue
 
-    CUR_PIDS=$(ssh $SSH_OPTS "$HOST" \
-        "ps -eo pid=,args= | awk '/[w]al receiver process/ {print \$1}'" \
+    PIDS=$(ssh $SSH_OPTS "$HOST" \
+        "ps -eo pid=,args= | awk '/[w]al receiver process/ {print \$1}' | xargs" \
         2>/dev/null || true)
 
-    COUNT=$(wc -w <<< "$CUR_PIDS")
-
-    if [ "$COUNT" -eq 2 ]; then
+    if [ "$(wc -w <<< "$PIDS")" -eq 2 ]; then
         TARGET="$HOST"
-        PIDS="$CUR_PIDS"
         break
     fi
 done
