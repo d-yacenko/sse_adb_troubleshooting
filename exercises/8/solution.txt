@@ -1,0 +1,87 @@
+# На mdw проверяем общее состояние кластера.
+sudo su - gpadmin
+
+gpstate
+
+# Обычный gpstate может не показать явной неисправности.
+# Проверяем состояние зеркал и синхронизации отдельно.
+gpstate -e
+
+# В проблемном состоянии ожидается предупреждение о том, что
+# pg_stat_replication не видит standby connection, и одна из пар
+# primary/mirror отображается как несинхронизированная.
+
+# Смотрим конфигурацию сегментов и определяем mirror проблемной пары.
+psql adb -c "
+SELECT
+    content,
+    role,
+    preferred_role,
+    mode,
+    status,
+    hostname,
+    port,
+    datadir
+FROM gp_segment_configuration
+ORDER BY content, role;
+"
+
+# Подключаемся к хосту mirror проблемной пары.
+# Для текущей конфигурации стенда это обычно sdw1.
+ssh ssetrouble01-sdw1
+
+# Пользователь gpadmin имеет доступ к каталогам своих segment instances.
+# Смотрим процессы Greenplum на хосте.
+ps aux | grep '[p]ostgres.*-D /data1'
+
+# Указываем datadir mirror из gp_segment_configuration.
+# Пример для текущей раскладки:
+MIRROR_DIR=/data1/mirror/gpseg2
+
+# Получаем PID postmaster конкретного mirror.
+PID=$(awk 'NR==1 {print $1}' "$MIRROR_DIR/postmaster.pid")
+
+# Смотрим дерево процессов segment instance.
+pstree -ap "$PID"
+
+# Смотрим состояния процессов дерева.
+ps -eo pid,ppid,stat,etime,cmd --forest | grep -A30 -B2 "$PID"
+
+# Отдельно можно найти процесс приема репликационного потока.
+ps -eo pid,ppid,stat,etime,cmd | grep '[w]al receiver'
+
+# У проблемного процесса в колонке STAT присутствует T (stopped).
+# Запоминаем его PID и продолжаем выполнение процесса.
+kill -CONT <PID_WAL_RECEIVER>
+
+# Проверяем, что состояние T исчезло.
+ps -o pid,ppid,stat,etime,cmd -p <PID_WAL_RECEIVER>
+
+# Альтернативный вариант восстановления:
+# kill -9 <PID_WAL_RECEIVER>
+# postmaster создаст новый процесс приема репликационного потока.
+
+# Возвращаемся на mdw.
+exit
+
+# Проверяем состояние синхронизации. Сразу после восстановления
+# паре может потребоваться некоторое время, чтобы догнать primary.
+gpstate -e
+
+# Повторяем проверку до восстановления нормального состояния.
+# После восстановления ранее зависшая операция INSERT должна завершиться
+# без повторного запуска самого запроса.
+
+# Проверяем данные и выполняем еще одну операцию записи.
+psql adb -c "SELECT count(*) FROM public.write_test;"
+
+psql adb -c "
+INSERT INTO public.write_test
+SELECT
+    i + 100000,
+    repeat(md5(i::text), 16)
+FROM generate_series(1,10000) i;
+"
+
+# Финальная проверка.
+gpstate -e

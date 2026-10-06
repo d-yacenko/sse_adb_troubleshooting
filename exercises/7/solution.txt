@@ -1,0 +1,33 @@
+#предварительные действия
+adb=# CREATE TABLE case7 (id int, descr text);
+
+adb=# \d+ case7
+                         Table "public.case7"
+ Column |  Type   | Modifiers | Storage  | Stats target | Description 
+--------+---------+-----------+----------+--------------+-------------
+ id     | integer |           | plain    |              | 
+ descr  | text    |           | extended |              | 
+Distributed by: (id)
+
+adb=# INSERT INTO case7 SELECT generate_series(1,1000000) AS id, md5(random()::text) AS descr;
+
+adb=# SELECT * FROM case7 LIMIT 5;
+
+#после поломки
+adb=# SELECT * FROM case7 LIMIT 5;
+
+adb=# CREATE TABLE case8 (id int, descr text);
+
+gpconfig -c 'gp_default_storage_options' -v 'appendoptimized=false, orientation=row'
+gpconfig -c default_transaction_read_only -v off
+
+gpstop -u
+
+adb=# ALTER DATABASE adb SET search_path TO public, "$user";
+adb=# \q
+
+psql adb
+adb=# SELECT * FROM case7 LIMIT 5;
+adb=# CREATE TABLE case8 (id int, descr text);
+
+
