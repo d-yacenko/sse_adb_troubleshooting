@@ -1,80 +1,68 @@
-# На mdw проверяем общее состояние кластера.
+# Подключаемся под gpadmin на mdw.
 sudo su - gpadmin
 
-gpstate
+# В отдельной сессии должен быть запущен тестовый INSERT из задания.
+# Он остается в состоянии выполнения и не завершается.
 
-# Обычный gpstate может не показать явной неисправности.
-# Проверяем состояние зеркал и синхронизации отдельно.
+# Сначала проверяем общее состояние кластера.
+gpstate
 gpstate -e
 
-# В проблемном состоянии ожидается предупреждение о том, что
-# pg_stat_replication не видит standby connection, и одна из пар
-# primary/mirror отображается как несинхронизированная.
+# В этом кейсе обе команды могут показывать, что все сегменты работают нормально.
+# Поэтому смотрим расширенную информацию по segment instances и репликации.
+gpstate -s
 
-# Смотрим конфигурацию сегментов и определяем mirror проблемной пары.
-psql adb -c "
-SELECT
-    content,
-    role,
-    preferred_role,
-    mode,
-    status,
-    hostname,
-    port,
-    datadir
-FROM gp_segment_configuration
-ORDER BY content, role;
-"
+# На проблемных mirror обратить внимание на:
+#   WAL Sent Location
+#   WAL Flush Location
+#   WAL Replay Location
+#   Bytes received but remain to flush
+#   Bytes received but remain to replay
+#
+# Если WAL Sent Location ушел вперед, а Flush/Replay не продвигаются,
+# повторяем проверку через несколько секунд.
+sleep 10
+gpstate -s
 
-# Подключаемся к хосту mirror проблемной пары.
-# Для текущей конфигурации стенда это обычно sdw1.
-ssh ssetrouble01-sdw1
+# В текущей конфигурации стенда два проблемных mirror находятся на sdw2.
+# Подключаемся к этому segment-host.
+SDW2=$(hostname -f | sed 's/-mdw/-sdw2/')
+ssh "$SDW2"
 
-# Пользователь gpadmin имеет доступ к каталогам своих segment instances.
-# Смотрим процессы Greenplum на хосте.
-ps aux | grep '[p]ostgres.*-D /data1'
-
-# Указываем datadir mirror из gp_segment_configuration.
-# Пример для текущей раскладки:
-MIRROR_DIR=/data1/mirror/gpseg2
-
-# Получаем PID postmaster конкретного mirror.
-PID=$(awk 'NR==1 {print $1}' "$MIRROR_DIR/postmaster.pid")
-
-# Смотрим дерево процессов segment instance.
-pstree -ap "$PID"
-
-# Смотрим состояния процессов дерева.
-ps -eo pid,ppid,stat,etime,cmd --forest | grep -A30 -B2 "$PID"
-
-# Отдельно можно найти процесс приема репликационного потока.
+# Проверяем процессы приема репликационного потока.
 ps -eo pid,ppid,stat,etime,cmd | grep '[w]al receiver'
 
-# У проблемного процесса в колонке STAT присутствует T (stopped).
-# Запоминаем его PID и продолжаем выполнение процесса.
-kill -CONT <PID_WAL_RECEIVER>
+# В нормальном состоянии процессы wal receiver не должны иметь T в STAT.
+# В проблемном состоянии оба процесса находятся в состоянии T (stopped).
+
+# Получаем PID обоих остановленных процессов.
+PIDS=$(ps -eo pid=,stat=,cmd= | awk '$2 ~ /T/ && /[w]al receiver process/ {print $1}' | xargs)
+
+# Убеждаемся, что найдено два процесса.
+echo "$PIDS"
+
+# Возобновляем работу обоих wal receiver.
+kill -CONT $PIDS
 
 # Проверяем, что состояние T исчезло.
-ps -o pid,ppid,stat,etime,cmd -p <PID_WAL_RECEIVER>
-
-# Альтернативный вариант восстановления:
-# kill -9 <PID_WAL_RECEIVER>
-# postmaster создаст новый процесс приема репликационного потока.
+ps -eo pid,ppid,stat,etime,cmd | grep '[w]al receiver'
 
 # Возвращаемся на mdw.
 exit
 
-# Проверяем состояние синхронизации. Сразу после восстановления
-# паре может потребоваться некоторое время, чтобы догнать primary.
-gpstate -e
+# Проверяем, что mirror снова продвигают WAL.
+gpstate -s
 
-# Повторяем проверку до восстановления нормального состояния.
-# После восстановления ранее зависшая операция INSERT должна завершиться
-# без повторного запуска самого запроса.
+# После восстановления WAL Flush/Replay должны догнать WAL Sent,
+# а Bytes received but remain to flush/replay вернуться к нулю.
+#
+# Если исходный INSERT не был отменен пользователем, он должен завершиться
+# после восстановления обоих wal receiver.
 
-# Проверяем данные и выполняем еще одну операцию записи.
+# Контрольная проверка данных.
 psql adb -c "SELECT count(*) FROM public.write_test;"
 
+# Дополнительно выполняем новую операцию записи.
 psql adb -c "
 INSERT INTO public.write_test
 SELECT
@@ -83,5 +71,14 @@ SELECT
 FROM generate_series(1,10000) i;
 "
 
-# Финальная проверка.
-gpstate -e
+# Финальная проверка состояния.
+gpstate
+gpstate -s
+
+# Альтернативный вариант восстановления:
+# вместо SIGCONT можно завершить оба остановленных wal receiver:
+#
+# kill -9 <PID1> <PID2>
+#
+# postmaster создаст новые процессы wal receiver.
+# Полный перезапуск кластера для устранения этой неисправности не требуется.
