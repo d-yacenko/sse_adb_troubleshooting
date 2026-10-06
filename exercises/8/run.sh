@@ -6,36 +6,53 @@ DB_USER="gpadmin"
 SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=5"
 
 MDW=$(hostname -f)
+SDW1=$(echo "$MDW" | sed 's/-mdw/-sdw1/g')
 SDW2=$(echo "$MDW" | sed 's/-mdw/-sdw2/g')
 
 echo "Подготовка проблемной ситуации..."
 
-if ! ssh -q $SSH_OPTS "$SDW2" "exit" 2>/dev/null; then
-    echo "Хост segment-сервера недоступен, свяжитесь с организаторами"
-    exit 1
-fi
+# Таблицу создаем до остановки репликации.
+sudo -iu "$DB_USER" psql -X -v ON_ERROR_STOP=1 -d "$DB" -c \
+"DROP TABLE IF EXISTS public.write_test;
+ CREATE TABLE public.write_test (id bigint, payload text)
+ WITH (appendonly=false) DISTRIBUTED RANDOMLY;" >/dev/null
 
-sudo -iu "$DB_USER" psql -X -v ON_ERROR_STOP=1 -d "$DB" -c "DROP TABLE IF EXISTS public.write_test; CREATE TABLE public.write_test (id bigint, payload text) WITH (appendonly=false) DISTRIBUTED RANDOMLY;" >/dev/null
+# Ищем segment-host, на котором видны оба wal receiver.
+TARGET=""
+PIDS=""
 
-ssh $SSH_OPTS "$SDW2" '
-PIDS=$(pgrep -f "postgres: .*wal receiver process" || true)
-COUNT=$(printf "%s\n" "$PIDS" | awk "NF{n++} END{print n+0}")
+for HOST in "$SDW1" "$SDW2"; do
+    if ! ssh -q $SSH_OPTS "$HOST" "exit" 2>/dev/null; then
+        continue
+    fi
 
-if [ "$COUNT" -ne 2 ]; then
+    CUR_PIDS=$(ssh $SSH_OPTS "$HOST" \
+        "ps -eo pid=,args= | awk '/[w]al receiver process/ {print \$1}'" \
+        2>/dev/null || true)
+
+    COUNT=$(wc -w <<< "$CUR_PIDS")
+
+    if [ "$COUNT" -eq 2 ]; then
+        TARGET="$HOST"
+        PIDS="$CUR_PIDS"
+        break
+    fi
+done
+
+if [ -z "$TARGET" ]; then
     echo "Не удалось определить два процесса wal receiver"
     exit 1
 fi
 
-sudo kill -STOP $PIDS
+ssh $SSH_OPTS "$TARGET" "sudo kill -STOP $PIDS"
 sleep 1
 
 for PID in $PIDS; do
-    STATE=$(ps -o stat= -p "$PID" | tr -d "[:space:]")
-    case "$STATE" in
-        *T*) ;;
-        *) echo "Не удалось остановить процесс wal receiver"; exit 1 ;;
-    esac
+    STATE=$(ssh $SSH_OPTS "$TARGET" "ps -o stat= -p '$PID'" 2>/dev/null | tr -d '[:space:]' || true)
+    if [[ "$STATE" != *T* ]]; then
+        echo "Не удалось остановить процесс wal receiver"
+        exit 1
+    fi
 done
-'
 
 echo "Приступайте к заданию"
