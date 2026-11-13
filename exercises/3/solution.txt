@@ -6,14 +6,14 @@ cat arenadata_configs/arenadata_all_hosts.hosts
 #на стороне adcm создаем хост
 Hosts -> Create host:
 	Hostprovider: SSH Common
-	Name: ssetrouble01-msdw1.ru-central1.internal
+	Name: ssetest01-msdw.mcs.local
 	Cluster: ADB
 #Create
 
 #настройка хоста
 Username: admin
 Password: <your_password>
-Connection address: ssetrouble01-msdw1.ru-central1.internal
+Connection address: ssetest01-msdw.mcs.local
 #Save
 
 action: Install statuschecker
@@ -24,9 +24,9 @@ ADB -> Action -> Init Standby Master
 	Reboot timeout, sec: 1800
 
 2 Host - Component
-	ssetrouble01-msdw1.ru-central1.internal добавить к компоненте ADB Standby
-	ssetrouble01-msdw1.ru-central1.internal добавить к компоненте Monitoring Agents
-	ssetrouble01-msdw1.ru-central1.internal добавить к компоненте PXF
+	ssetest01-msdw.mcs.local добавить к компоненте ADB Standby
+	ssetest01-msdw.mcs.local добавить к компоненте Monitoring Agents
+	ssetest01-msdw.mcs.local добавить к компоненте PXF
 #Run
 
 sudo su - gpadmin
