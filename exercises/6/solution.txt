@@ -1,4 +1,6 @@
-# Переходим под gpadmin.
+# run.sh запускается с mdw, а диагностика БД выполняется на msdw1.
+MSDW=$(hostname -f | sed 's/-mdw/-msdw1/')
+ssh "$MSDW"
 sudo su - gpadmin
 
 # Проверяем общее состояние кластера.
@@ -62,6 +64,9 @@ JOIN motion_b b
 GROUP BY a.join_key;
 
 \q
+
+# Возвращаемся из gpadmin в admin на msdw1.
+exit
 
 # После завершения задания удаляем созданные run.sh правила packet loss.
 MSDW=$(hostname -f)
