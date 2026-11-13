@@ -6,7 +6,7 @@ DB_USER="gpadmin"
 SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=5"
 
 MDW=$(hostname -f)
-MSDW=${MDW/-mdw/-msdw1}
+MSDW=${MDW/-mdw/-msdw}
 [[ "$MSDW" != "$MDW" ]] || { echo "Запустите run.sh с исходного mdw"; exit 1; }
 SDW2=${MDW/-mdw/-sdw2}
 
