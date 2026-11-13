@@ -1,5 +1,5 @@
-# Скрипт запускается на mdw; диагностика выполняется на активном master msdw1.
-MSDW=$(hostname -f | sed 's/-mdw/-msdw1/')
+# Скрипт запускается на mdw; диагностика выполняется на активном master msdw.
+MSDW=$(hostname -f | sed 's/-mdw/-msdw/')
 ssh "$MSDW"
 
 sudo su - gpadmin
