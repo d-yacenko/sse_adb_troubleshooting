@@ -7,10 +7,11 @@ LOSS="0.06"
 TAG="exercise6_loss"
 SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=5"
 
-MSDW=$(hostname -f)
-[[ "${MSDW%%.*}" == *-msdw1 ]] || { echo "Запустите упражнение на msdw1"; exit 1; }
-SDW1=$(echo "$MSDW" | sed 's/-msdw1/-sdw1/')
-SDW2=$(echo "$MSDW" | sed 's/-msdw1/-sdw2/')
+MDW=$(hostname -f)
+MSDW=${MDW/-mdw/-msdw1}
+[[ "$MSDW" != "$MDW" ]] || { echo "Запустите run.sh с исходного mdw"; exit 1; }
+SDW1=${MDW/-mdw/-sdw1}
+SDW2=${MDW/-mdw/-sdw2}
 
 echo "Подготовка тестовых данных..."
 
@@ -22,7 +23,7 @@ for HOST in "$SDW1" "$SDW2"; do
     "
 done
 
-sudo -iu "$DB_USER" psql -X -v ON_ERROR_STOP=1 -d "$DB" <<'SQL'
+ssh -T $SSH_OPTS "$MSDW" "sudo -iu $DB_USER psql -X -v ON_ERROR_STOP=1 -d $DB" <<'SQL'
 DROP TABLE IF EXISTS public.motion_a;
 DROP TABLE IF EXISTS public.motion_b;
 
