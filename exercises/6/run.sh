@@ -8,7 +8,7 @@ TAG="exercise6_loss"
 SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=5"
 
 MDW=$(hostname -f)
-MSDW=${MDW/-mdw/-msdw1}
+MSDW=${MDW/-mdw/-msdw}
 [[ "$MSDW" != "$MDW" ]] || { echo "Запустите run.sh с исходного mdw"; exit 1; }
 SDW1=${MDW/-mdw/-sdw1}
 SDW2=${MDW/-mdw/-sdw2}
