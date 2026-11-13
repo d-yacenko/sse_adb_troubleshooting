@@ -4,10 +4,11 @@ Cluster -> ADB -> Action -> Activate standby
 	run analyze: false
 #Run
 
-# После успешного Activate standby, на бывшем mdw (под admin):
-# Сохраняем устаревший master data directory, чтобы исключить его случайный запуск.
-# Не выполнять до завершения Activate standby.
-sudo test ! -e /data1/master.before_case4 && sudo mv /data1/master /data1/master.before_case4
+# На бывшем mdw бинарник postgres уже заблокирован в run.sh:
+# его исполняемые биты сняты до остановки master.
+# Старый /data1/master/gpseg-1 сохраняется на месте, НЕ запускайте его.
+# Для отката на тестовом стенде исходный путь и режим бинарника
+# сохранены в /root/exercise4_postgres_original_mode на бывшем mdw.
 # Проверить cron-задачи gpadmin на бывшем mdw и убрать обращения к старому master.
 
 # Далее работаем на новом master msdw1:
