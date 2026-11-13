@@ -4,9 +4,19 @@ Cluster -> ADB -> Action -> Activate standby
 	run analyze: false
 #Run
 
+# На бывшем mdw бинарник postgres уже заблокирован в run.sh:
+# его исполняемые биты сняты до остановки master.
+# Старый /data1/master/gpseg-1 сохраняется на месте, НЕ запускайте его.
+# Для отката на тестовом стенде исходный путь и режим бинарника
+# сохранены в /root/exercise4_postgres_original_mode на бывшем mdw.
+# Проверить cron-задачи gpadmin на бывшем mdw и убрать обращения к старому master.
+
+# Далее работаем на новом master msdw1:
+ssh ssetrouble01-msdw1.ru-central1.internal
+sudo su - gpadmin
+
 #проверить работоспособность кластера
 проверить состав хостов в кластере
-sudo su - gpadmin
 cat arenadata_configs/arenadata_all_hosts.hosts
 psql adb;
 select distinct(hostname) from gp_segment_configuration ;

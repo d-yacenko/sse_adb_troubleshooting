@@ -1,4 +1,6 @@
-# Переходим под gpadmin.
+# run.sh запускается с mdw, а диагностика БД выполняется на msdw1.
+MSDW=$(hostname -f | sed 's/-mdw/-msdw1/')
+ssh "$MSDW"
 sudo su - gpadmin
 
 # Проверяем общее состояние кластера.
@@ -14,7 +16,7 @@ psql adb
 
 SET gp_interconnect_log_stats = on;
 SET client_min_messages = log;
-\\timing on
+\timing on
 
 EXPLAIN ANALYZE
 SELECT
@@ -26,14 +28,14 @@ JOIN motion_b b
     ON a.join_key = b.join_key
 GROUP BY a.join_key;
 
-# В строках Interconnect State обращаем внимание на:
-#   snd_pkt_count
-#   retransmits
-#   disordered_pkt_num
-#   duplicated_pkt_num
-#
-# Фиксируем Execution time / Time и количество retransmits.
-\\q
+-- В строках Interconnect State обращаем внимание на:
+--   snd_pkt_count
+--   retransmits
+--   disordered_pkt_num
+--   duplicated_pkt_num
+--
+-- Фиксируем Execution time / Time и количество retransmits.
+\q
 
 # Меняем транспорт Interconnect на TCP.
 gpconfig -c gp_interconnect_type -v tcp
@@ -49,7 +51,7 @@ gpconfig -s gp_interconnect_type
 # Повторяем тот же запрос без изменения SQL и сравниваем время.
 psql adb
 
-\\timing on
+\timing on
 
 EXPLAIN ANALYZE
 SELECT
@@ -61,17 +63,22 @@ JOIN motion_b b
     ON a.join_key = b.join_key
 GROUP BY a.join_key;
 
-\\q
+\q
+
+# Возвращаемся из gpadmin в admin на msdw1.
+exit
 
 # После завершения задания удаляем созданные run.sh правила packet loss.
-MDW=$(hostname -f)
-SDW1=$(echo "$MDW" | sed 's/-mdw/-sdw1/')
-SDW2=$(echo "$MDW" | sed 's/-mdw/-sdw2/')
+MSDW=$(hostname -f)
+SDW1=$(echo "$MSDW" | sed 's/-msdw1/-sdw1/')
+SDW2=$(echo "$MSDW" | sed 's/-msdw1/-sdw2/')
 
 for HOST in "$SDW1" "$SDW2"; do
-    ssh "$HOST" '
-        while N=$(sudo iptables -L OUTPUT --line-numbers -n | awk "/exercise6_loss/{print \\$1; exit}"); [ -n "$N" ]; do
-            sudo iptables -D OUTPUT "$N"
-        done
-    '
+    ssh "$HOST" 'bash -s' <<'SH'
+while :; do
+    N=$(sudo iptables -L OUTPUT --line-numbers -n | awk '/exercise6_loss/{print $1; exit}')
+    [ -n "$N" ] || break
+    sudo iptables -D OUTPUT "$N"
+done
+SH
 done

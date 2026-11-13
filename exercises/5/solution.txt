@@ -1,3 +1,7 @@
+# Скрипт запускается на mdw; диагностика выполняется на активном master msdw1.
+MSDW=$(hostname -f | sed 's/-mdw/-msdw1/')
+ssh "$MSDW"
+
 sudo su - gpadmin
 
 # подключаемся к БД

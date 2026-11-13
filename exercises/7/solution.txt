@@ -1,3 +1,9 @@
+# После кейса 4 active master находится на msdw1.
+# Подключаемся к нему с mdw для диагностики и восстановления:
+MSDW=$(hostname -f | sed 's/-mdw/-msdw1/')
+ssh "$MSDW"
+sudo su - gpadmin
+
 #предварительные действия
 adb=# CREATE TABLE case7 (id int, descr text);
 
