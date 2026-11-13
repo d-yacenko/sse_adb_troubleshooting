@@ -7,9 +7,10 @@ LOSS="0.06"
 TAG="exercise6_loss"
 SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=5"
 
-MDW=$(hostname -f)
-SDW1=$(echo "$MDW" | sed 's/-mdw/-sdw1/')
-SDW2=$(echo "$MDW" | sed 's/-mdw/-sdw2/')
+MSDW=$(hostname -f)
+[[ "${MSDW%%.*}" == *-msdw1 ]] || { echo "Запустите упражнение на msdw1"; exit 1; }
+SDW1=$(echo "$MSDW" | sed 's/-msdw1/-sdw1/')
+SDW2=$(echo "$MSDW" | sed 's/-msdw1/-sdw2/')
 
 echo "Подготовка тестовых данных..."
 
