@@ -4,9 +4,18 @@ Cluster -> ADB -> Action -> Activate standby
 	run analyze: false
 #Run
 
+# После успешного Activate standby, на бывшем mdw (под admin):
+# Сохраняем устаревший master data directory, чтобы исключить его случайный запуск.
+# Не выполнять до завершения Activate standby.
+sudo test ! -e /data1/master.before_case4 && sudo mv /data1/master /data1/master.before_case4
+# Проверить cron-задачи gpadmin на бывшем mdw и убрать обращения к старому master.
+
+# Далее работаем на новом master msdw1:
+ssh ssetrouble01-msdw1.ru-central1.internal
+sudo su - gpadmin
+
 #проверить работоспособность кластера
 проверить состав хостов в кластере
-sudo su - gpadmin
 cat arenadata_configs/arenadata_all_hosts.hosts
 psql adb;
 select distinct(hostname) from gp_segment_configuration ;
