@@ -1,5 +1,5 @@
-# run.sh запускается с mdw, а диагностика БД выполняется на msdw1.
-MSDW=$(hostname -f | sed 's/-mdw/-msdw1/')
+# run.sh запускается с mdw, а диагностика БД выполняется на msdw.
+MSDW=$(hostname -f | sed 's/-mdw/-msdw/')
 ssh "$MSDW"
 sudo su - gpadmin
 
@@ -65,13 +65,13 @@ GROUP BY a.join_key;
 
 \q
 
-# Возвращаемся из gpadmin в admin на msdw1.
+# Возвращаемся из gpadmin в admin на msdw.
 exit
 
 # После завершения задания удаляем созданные run.sh правила packet loss.
 MSDW=$(hostname -f)
-SDW1=$(echo "$MSDW" | sed 's/-msdw1/-sdw1/')
-SDW2=$(echo "$MSDW" | sed 's/-msdw1/-sdw2/')
+SDW1=$(echo "$MSDW" | sed 's/-msdw/-sdw1/')
+SDW2=$(echo "$MSDW" | sed 's/-msdw/-sdw2/')
 
 for HOST in "$SDW1" "$SDW2"; do
     ssh "$HOST" 'bash -s' <<'SH'
