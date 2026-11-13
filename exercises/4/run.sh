@@ -5,7 +5,7 @@ SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=5"
 
 # Определяем имена хостов
 MDW=$(hostname -f)
-STANDBY=$(echo "$MDW" | sed 's/-mdw/-msdw/g')
+STANDBY=$(echo "$MDW" | sed 's/-mdw/-msdw1/g')
 
 echo "Первый этап запущен"
 # 1. Останавливаем мастер и удаляем сокеты
