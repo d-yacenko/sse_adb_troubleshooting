@@ -2,11 +2,11 @@
 set -euo pipefail
 
 MDW=$(hostname -f)
-MSDW=${MDW/-mdw/-msdw1}
+MSDW=${MDW/-mdw/-msdw}
 [[ "$MSDW" != "$MDW" ]] || { echo "Запустите run.sh с исходного mdw"; exit 1; }
 SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=5"
 
-# Скрипт остается на mdw, все запросы и фоновые сессии работают на msdw1.
+# Скрипт остается на mdw, все запросы и фоновые сессии работают на msdw.
 ssh -T $SSH_OPTS "$MSDW" 'bash -s' <<'REMOTE'
 set -euo pipefail
 DB="adb"
