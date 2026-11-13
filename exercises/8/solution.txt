@@ -1,4 +1,6 @@
-# Подключаемся под gpadmin на новом active master msdw1.
+# run.sh запускается с mdw; для диагностики подключаемся на msdw1.
+MSDW=$(hostname -f | sed 's/-mdw/-msdw1/')
+ssh "$MSDW"
 sudo su - gpadmin
 
 # В отдельной сессии должен быть запущен тестовый INSERT из задания.
