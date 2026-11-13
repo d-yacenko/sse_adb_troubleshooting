@@ -1,5 +1,5 @@
-# run.sh запускается с mdw; для диагностики подключаемся на msdw1.
-MSDW=$(hostname -f | sed 's/-mdw/-msdw1/')
+# run.sh запускается с mdw; для диагностики подключаемся на msdw.
+MSDW=$(hostname -f | sed 's/-mdw/-msdw/')
 ssh "$MSDW"
 sudo su - gpadmin
 
@@ -28,7 +28,7 @@ gpstate -s
 
 # В текущей конфигурации стенда два проблемных mirror находятся на sdw2.
 # Подключаемся к этому segment-host.
-SDW2=$(hostname -f | sed 's/-msdw1/-sdw2/')
+SDW2=$(hostname -f | sed 's/-msdw/-sdw2/')
 ssh "$SDW2"
 
 # Проверяем процессы приема репликационного потока.
@@ -49,7 +49,7 @@ kill -CONT $PIDS
 # Проверяем, что состояние T исчезло.
 ps -eo pid,ppid,stat,etime,cmd | grep '[w]al receiver'
 
-# Возвращаемся на msdw1.
+# Возвращаемся на msdw.
 exit
 
 # Проверяем, что mirror снова продвигают WAL.
