@@ -11,8 +11,8 @@ Cluster -> ADB -> Action -> Activate standby
 # сохранены в /root/exercise4_postgres_original_mode на бывшем mdw.
 # Проверить cron-задачи gpadmin на бывшем mdw и убрать обращения к старому master.
 
-# Далее работаем на новом master msdw1:
-ssh ssetrouble01-msdw1.ru-central1.internal
+# Далее работаем на новом master msdw:
+ssh ssetest01-msdw.mcs.local
 sudo su - gpadmin
 
 #проверить работоспособность кластера
@@ -28,7 +28,7 @@ Cluster -> ADB -> Services -> Monitoring Clients
 Action -> Uninstall
 
 Cluster -> ADB -> Hosts 
-ssetrouble01-mdw.ru-central1.internal -> Unlink
+ssetest01-mdw.mcs.local -> Unlink
 
 Cluster -> ADB -> Reinstall statuschecker
 
