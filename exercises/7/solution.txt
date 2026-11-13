@@ -1,39 +1,65 @@
-# После кейса 4 active master находится на msdw.
-# Подключаемся к нему с mdw для диагностики и восстановления:
+# После кейса 4 активный master находится на msdw.
+# run.sh запускаем на mdw; диагностику и восстановление выполняем на msdw.
 MSDW=$(hostname -f | sed 's/-mdw/-msdw/')
 ssh "$MSDW"
 sudo su - gpadmin
 
-#предварительные действия
-adb=# CREATE TABLE case7 (id int, descr text);
+# ПРЕДВАРИТЕЛЬНЫЕ ДЕЙСТВИЯ (до выполнения run.sh).
+psql adb
 
-adb=# \d+ case7
-                         Table "public.case7"
- Column |  Type   | Modifiers | Storage  | Stats target | Description 
---------+---------+-----------+----------+--------------+-------------
- id     | integer |           | plain    |              | 
- descr  | text    |           | extended |              | 
-Distributed by: (id)
+CREATE TABLE case7 (id int, descr text);
+\d+ case7
 
-adb=# INSERT INTO case7 SELECT generate_series(1,1000000) AS id, md5(random()::text) AS descr;
+INSERT INTO case7
+SELECT generate_series(1,1000000) AS id,
+       md5(random()::text) AS descr;
 
-adb=# SELECT * FROM case7 LIMIT 5;
+SELECT * FROM case7 LIMIT 5;
+\q
 
-#после поломки
-adb=# SELECT * FROM case7 LIMIT 5;
+# ПОСЛЕ ВЫПОЛНЕНИЯ run.sh НА mdw.
+# Проверяем симптомы и текущие параметры в новой сессии.
+psql adb
 
-adb=# CREATE TABLE case8 (id int, descr text);
+SHOW search_path;
+SHOW default_transaction_read_only;
+SHOW gp_default_storage_options;
 
-gpconfig -c 'gp_default_storage_options' -v 'appendoptimized=false, orientation=row'
+-- Таблица существует, но поиск без имени схемы может завершаться ошибкой.
+SELECT * FROM case7 LIMIT 5;
+
+-- Создание таблицы также не выполняется штатным образом.
+CREATE TABLE case8 (id int, descr text);
+\q
+
+# Смотрим значения конфигурационных параметров на уровне кластера.
+gpconfig -s gp_default_storage_options
+gpconfig -s default_transaction_read_only
+
+# Возвращаем исходные настройки хранения и режима транзакций.
+gpconfig -c gp_default_storage_options -v 'appendoptimized=false, orientation=row'
 gpconfig -c default_transaction_read_only -v off
 
+# Применяем изменения без полного перезапуска кластера.
 gpstop -u
 
-adb=# ALTER DATABASE adb SET search_path TO public, "$user";
-adb=# \q
+# В run.sh search_path меняется НА УРОВНЕ ДВУХ БАЗ: adb и postgres.
+# RESET удаляет заданное для базы переопределение и возвращает наследование
+# стандартного search_path. Новые настройки действуют в новых соединениях.
+psql -X -v ON_ERROR_STOP=1 -d adb <<'SQL'
+ALTER DATABASE adb RESET search_path;
+ALTER DATABASE postgres RESET search_path;
+SQL
 
-psql adb
-adb=# SELECT * FROM case7 LIMIT 5;
-adb=# CREATE TABLE case8 (id int, descr text);
+# Переподключаемся и проверяем восстановление работы.
+psql -X -v ON_ERROR_STOP=1 -d adb <<'SQL'
+SHOW search_path;
+SHOW default_transaction_read_only;
+SHOW gp_default_storage_options;
 
+SELECT * FROM case7 LIMIT 5;
+CREATE TABLE case8 (id int, descr text);
+SQL
 
+# Проверяем, что настройка search_path восстановлена и для postgres.
+psql -X -d postgres -c 'SHOW search_path;'
