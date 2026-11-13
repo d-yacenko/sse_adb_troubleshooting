@@ -5,7 +5,8 @@ DB="adb"
 DB_USER="gpadmin"
 SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=5"
 
-SDW2=$(hostname -f | sed 's/-mdw/-sdw2/')
+[[ "$(hostname -s)" == *-msdw1 ]] || { echo "Запустите упражнение на msdw1"; exit 1; }
+SDW2=$(hostname -f | sed 's/-msdw1/-sdw2/')
 
 echo "Подготовка проблемной ситуации..."
 
