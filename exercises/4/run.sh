@@ -4,7 +4,7 @@ set -euo pipefail
 SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=5"
 
 MDW=$(hostname -f)
-STANDBY=$(echo "$MDW" | sed 's/-mdw/-msdw1/g')
+STANDBY=$(echo "$MDW" | sed 's/-mdw/-msdw/g')
 
 # Проверяем доступность standby до вмешательства в работающий master.
 if ! ssh -q $SSH_OPTS "$STANDBY" "exit" 2>/dev/null; then
