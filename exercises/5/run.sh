@@ -1,12 +1,18 @@
 #!/bin/bash
 set -euo pipefail
 
+MDW=$(hostname -f)
+MSDW=${MDW/-mdw/-msdw1}
+[[ "$MSDW" != "$MDW" ]] || { echo "Запустите run.sh с исходного mdw"; exit 1; }
+SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=5"
+
+# Скрипт остается на mdw, все запросы и фоновые сессии работают на msdw1.
+ssh -T $SSH_OPTS "$MSDW" 'bash -s' <<'REMOTE'
+set -euo pipefail
 DB="adb"
 DB_USER="gpadmin"
 RESOURCE_GROUP="admin_group"
 
-# После кейса 4 все упражнения выполняются на новом active master.
-[[ "$(hostname -s)" == *-msdw1 ]] || { echo "Запустите упражнение на msdw1"; exit 1; }
 
 APP_PREFIX="exercise6_resgroup"
 SLEEP_SECONDS=$((240 * 3600))
@@ -72,3 +78,4 @@ done
 sleep 3
 
 echo "Приступайте к заданию"
+REMOTE
