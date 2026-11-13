@@ -5,8 +5,10 @@ DB="adb"
 DB_USER="gpadmin"
 SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=5"
 
-[[ "$(hostname -s)" == *-msdw1 ]] || { echo "Запустите упражнение на msdw1"; exit 1; }
-SDW2=$(hostname -f | sed 's/-msdw1/-sdw2/')
+MDW=$(hostname -f)
+MSDW=${MDW/-mdw/-msdw1}
+[[ "$MSDW" != "$MDW" ]] || { echo "Запустите run.sh с исходного mdw"; exit 1; }
+SDW2=${MDW/-mdw/-sdw2}
 
 echo "Подготовка проблемной ситуации..."
 
@@ -24,10 +26,11 @@ ssh $SSH_OPTS "$SDW2" "sudo kill -CONT $PIDS"
 sleep 2
 
 # Подготавливаем таблицу на исправном кластере.
-sudo -iu "$DB_USER" psql -X -v ON_ERROR_STOP=1 -d "$DB" -c \
-"DROP TABLE IF EXISTS public.write_test;
- CREATE TABLE public.write_test (id bigint, payload text)
- WITH (appendonly=false) DISTRIBUTED RANDOMLY;" >/dev/null
+ssh -T $SSH_OPTS "$MSDW" "sudo -iu $DB_USER psql -X -v ON_ERROR_STOP=1 -d $DB" <<'SQL' >/dev/null
+DROP TABLE IF EXISTS public.write_test;
+CREATE TABLE public.write_test (id bigint, payload text)
+WITH (appendonly=false) DISTRIBUTED RANDOMLY;
+SQL
 
 # Создаем неисправность: останавливаем оба wal receiver на хосте.
 ssh $SSH_OPTS "$SDW2" "sudo kill -STOP $PIDS"
