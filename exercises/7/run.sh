@@ -2,7 +2,7 @@
 set -euo pipefail
 
 MDW=$(hostname -f)
-MSDW=${MDW/-mdw/-msdw1}
+MSDW=${MDW/-mdw/-msdw}
 [[ "$MSDW" != "$MDW" ]] || { echo "Запустите run.sh с исходного mdw"; exit 1; }
 SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=5"
 
