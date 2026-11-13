@@ -1,4 +1,4 @@
-# Подключаемся под gpadmin на mdw.
+# Подключаемся под gpadmin на новом active master msdw1.
 sudo su - gpadmin
 
 # В отдельной сессии должен быть запущен тестовый INSERT из задания.
@@ -26,7 +26,7 @@ gpstate -s
 
 # В текущей конфигурации стенда два проблемных mirror находятся на sdw2.
 # Подключаемся к этому segment-host.
-SDW2=$(hostname -f | sed 's/-mdw/-sdw2/')
+SDW2=$(hostname -f | sed 's/-msdw1/-sdw2/')
 ssh "$SDW2"
 
 # Проверяем процессы приема репликационного потока.
@@ -47,7 +47,7 @@ kill -CONT $PIDS
 # Проверяем, что состояние T исчезло.
 ps -eo pid,ppid,stat,etime,cmd | grep '[w]al receiver'
 
-# Возвращаемся на mdw.
+# Возвращаемся на msdw1.
 exit
 
 # Проверяем, что mirror снова продвигают WAL.
