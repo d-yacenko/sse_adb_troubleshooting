@@ -5,6 +5,9 @@ DB="adb"
 DB_USER="gpadmin"
 RESOURCE_GROUP="admin_group"
 
+# После кейса 4 все упражнения выполняются на новом active master.
+[[ "$(hostname -s)" == *-msdw1 ]] || { echo "Запустите упражнение на msdw1"; exit 1; }
+
 APP_PREFIX="exercise6_resgroup"
 SLEEP_SECONDS=$((240 * 3600))
 LOG_FILE="/tmp/${APP_PREFIX}.log"
