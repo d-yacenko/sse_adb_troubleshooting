@@ -1,12 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
-# После кейса 4 запускаем упражнение на новом active master.
-[[ "$(hostname -s)" == *-msdw1 ]] || { echo "Запустите упражнение на msdw1"; exit 1; }
+MDW=$(hostname -f)
+MSDW=${MDW/-mdw/-msdw1}
+[[ "$MSDW" != "$MDW" ]] || { echo "Запустите run.sh с исходного mdw"; exit 1; }
+SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=5"
 
 echo "Поломка запущена..."
 
-sudo -iu gpadmin bash <<'EOF'
+ssh -T $SSH_OPTS "$MSDW" 'sudo -iu gpadmin bash -s' <<'EOF'
 set -e
 gpconfig -c 'gp_default_storage_options' -v 'appendoptimized=true, orientation=column, compresstype=zstd, compresslevel=5' > /dev/null 2>&1
 psql -v ON_ERROR_STOP=1 -d postgres -c "ALTER DATABASE postgres SET search_path = task, pg_catalog" > /dev/null 2>&1
