@@ -1,6 +1,6 @@
-# После кейса 4 active master находится на msdw1.
+# После кейса 4 active master находится на msdw.
 # Подключаемся к нему с mdw для диагностики и восстановления:
-MSDW=$(hostname -f | sed 's/-mdw/-msdw1/')
+MSDW=$(hostname -f | sed 's/-mdw/-msdw/')
 ssh "$MSDW"
 sudo su - gpadmin
 
