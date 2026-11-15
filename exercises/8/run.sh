@@ -52,7 +52,7 @@ for NAME in wal_sender_timeout wal_receiver_timeout gp_segment_connect_timeout; 
     FOUND=$(psql -X -Atq -d postgres \
         -c "SELECT count(*) FROM pg_settings WHERE name = '$NAME';")
     if [ "$FOUND" != "1" ]; then
-        echo "Параметр $NAME не найден в этой сборке ADB"
+        echo "Не удалось подготовить параметры кластера. Свяжитесь с организаторами"
         exit 1
     fi
 done
@@ -69,10 +69,17 @@ if [ ! -e "$SAVE" ]; then
     } > "$SAVE"
 fi
 
-echo "Исходные настройки сохранены в $SAVE"
-gpconfig -c wal_sender_timeout -v "${TIMEOUT_MS}ms"
-gpconfig -c wal_receiver_timeout -v "${TIMEOUT_MS}ms"
-gpconfig -c gp_segment_connect_timeout -v "$TIMEOUT_S"
+# Не выводим имена изменённых GUC: студент должен найти их самостоятельно.
+echo "Настройка кластера..."
+set_experiment_guc() {
+    if ! gpconfig -c "$1" -v "$2" > /dev/null 2>&1; then
+        echo "Не удалось применить конфигурацию стенда. Свяжитесь с организаторами" >&2
+        exit 1
+    fi
+}
+set_experiment_guc wal_sender_timeout "${TIMEOUT_MS}ms"
+set_experiment_guc wal_receiver_timeout "${TIMEOUT_MS}ms"
+set_experiment_guc gp_segment_connect_timeout "$TIMEOUT_S"
 
 # В GP6 максимальный grace period обычно равен 3600 секундам.
 # Если GUC отсутствует в конкретной сборке, просто пропускаем его.
@@ -84,19 +91,15 @@ if [[ "$GRACE_MAX" =~ ^[0-9]+$ ]]; then
     if [ "$GRACE_MAX" -lt "$GRACE" ]; then
         GRACE=$GRACE_MAX
     fi
-    gpconfig -c gp_fts_mark_mirror_down_grace_period -v "$GRACE"
+    set_experiment_guc gp_fts_mark_mirror_down_grace_period "$GRACE"
 else
-    echo "gp_fts_mark_mirror_down_grace_period отсутствует, пропускаем"
+    echo "Необязательный параметр конфигурации не поддерживается, пропускаем"
 fi
 
 # Применяем параметры без полного перезапуска кластера.
 gpstop -u
 
-echo "Экспериментальные значения:"
-for NAME in wal_sender_timeout wal_receiver_timeout \
-            gp_segment_connect_timeout gp_fts_mark_mirror_down_grace_period; do
-    gpconfig -s "$NAME" || true
-done
+echo "Настройка кластера завершена"
 CONFIG
 
 # Подготавливаем таблицу на исправном кластере.
